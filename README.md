@@ -26,6 +26,11 @@ character's model** to any of 582 Digimon, chosen from an in-game config dropdow
 
 ## Build from source (the mod)
 ```powershell
+# --recurse-submodules pulls MVLibraryNET, which tools/MbeDumper needs.
+# (Already cloned without it? Run: git submodule update --init)
+git clone --recurse-submodules https://github.com/jfmherokiller/DSTS-ModelSwap.git
+cd DSTS-ModelSwap
+
 # RELOADEDIIMODS (set by Reloaded II) makes it build straight into your Mods folder;
 # otherwise it outputs to src/PlayerModelSwap/bin/mod.
 dotnet build src/PlayerModelSwap/TimeStranger.PlayerModelSwap.csproj -c Release
