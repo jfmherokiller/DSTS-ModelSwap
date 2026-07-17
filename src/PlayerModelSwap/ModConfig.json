@@ -1,0 +1,35 @@
+{
+  "ModId": "timestranger.noah.playermodelswap",
+  "ModName": "Player Model Swap (Native)",
+  "ModAuthor": "Noah Gooder",
+  "ModVersion": "1.0.0",
+  "ModDescription": "Swaps the field player character's model to any of 582 Digimon, chosen in the mod config. A native hook on FieldPlayer_ResolveModelRef overrides the model at render time only and never writes the in-game change-model flag, so it is fully save-safe: enabling, changing, or removing the mod never corrupts your save.",
+  "ModDll": "TimeStranger.PlayerModelSwap.dll",
+  "ModIcon": "",
+  "ModR2RManagedDll32": "",
+  "ModR2RManagedDll64": "",
+  "ModNativeDll32": "",
+  "ModNativeDll64": "",
+  "Tags": [
+    "ModelSwap",
+    "Digimon",
+    "Player",
+    "Character"
+  ],
+  "CanUnload": false,
+  "HasExports": false,
+  "IsLibrary": false,
+  "ReleaseMetadataFileName": "timestranger.noah.playermodelswap.ReleaseMetadata.json",
+  "PluginData": {},
+  "IsUniversalMod": false,
+  "ModDependencies": [
+    "Reloaded.Memory.SigScan.ReloadedII",
+    "reloaded.sharedlib.hooks",
+    "MVGL.FileLoader.Reloaded"
+  ],
+  "OptionalDependencies": [],
+  "SupportedAppId": [
+    "digimon story time stranger.exe"
+  ],
+  "ProjectUrl": ""
+}
