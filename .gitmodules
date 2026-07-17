@@ -1,0 +1,3 @@
+[submodule "external/MVLibraryNET"]
+	path = external/MVLibraryNET
+	url = https://github.com/RyoTune/MVLibraryNET.git

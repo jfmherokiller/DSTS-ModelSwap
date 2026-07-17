@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net9.0</TargetFramework>
+        <LangVersion>12.0</LangVersion>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- MVLibraryNET is vendored as a git submodule: external/MVLibraryNET (RyoTune/MVLibraryNET).
+             After cloning this repo, initialize submodules (see README). -->
+        <ProjectReference Include="..\..\external\MVLibraryNET\MVLibraryNET\MVLibraryNET.csproj" />
+        <ProjectReference Include="..\..\external\MVLibraryNET\MVLibraryNET.Definitions\MVLibraryNET.Definitions.csproj" />
+    </ItemGroup>
+
+</Project>
