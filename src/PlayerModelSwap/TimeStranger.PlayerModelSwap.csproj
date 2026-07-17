@@ -18,6 +18,10 @@
         <Content Include="ModConfig.json">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
+        <!-- Player-facing readme, shipped alongside the mod. -->
+        <Content Include="README.md">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
         <!-- MBE rows (player_change_model) delivered via MVGL.FileLoader's mvgl-loader probe path. -->
         <Content Include="mvgl-loader\**\*">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

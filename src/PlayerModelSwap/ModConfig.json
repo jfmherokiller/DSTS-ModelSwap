@@ -3,7 +3,7 @@
   "ModName": "Player Model Swap (Native)",
   "ModAuthor": "Noah Gooder",
   "ModVersion": "1.0.0",
-  "ModDescription": "Swaps the field player character's model to any of 582 Digimon, chosen in the mod config. A native hook on FieldPlayer_ResolveModelRef overrides the model at render time only and never writes the in-game change-model flag, so it is fully save-safe: enabling, changing, or removing the mod never corrupts your save.",
+  "ModDescription": "Swaps the field player character's model to any of 582 Digimon, chosen in the mod config. Models have a prefix denoting how well they will function with A being the best support.",
   "ModDll": "TimeStranger.PlayerModelSwap.dll",
   "ModIcon": "",
   "ModR2RManagedDll32": "",
@@ -20,12 +20,52 @@
   "HasExports": false,
   "IsLibrary": false,
   "ReleaseMetadataFileName": "timestranger.noah.playermodelswap.ReleaseMetadata.json",
-  "PluginData": {},
+  "IgnoreRegexes": [
+    ".*\\.json"
+  ],
+  "IncludeRegexes": [
+    "\\.deps\\.json",
+    "\\.runtimeconfig\\.json",
+    "ModConfig\\.json"
+  ],
+  "PluginData": {
+    "GitHubDependencies": {
+      "IdToConfigMap": {
+        "MVGL.FileLoader.Reloaded": {
+          "Config": {
+            "UserName": "RyoTune",
+            "RepositoryName": "MVGL.FileLoader",
+            "UseReleaseTag": false,
+            "AssetFileName": "Mod.zip"
+          },
+          "ReleaseMetadataName": "MVGL.FileLoader.Reloaded.ReleaseMetadata.json"
+        },
+        "Reloaded.Memory.SigScan.ReloadedII": {
+          "Config": {
+            "UserName": "Reloaded-Project",
+            "RepositoryName": "Reloaded.Memory.SigScan",
+            "UseReleaseTag": false,
+            "AssetFileName": "Mod.zip"
+          },
+          "ReleaseMetadataName": "Reloaded.Memory.SigScan.ReloadedII.ReleaseMetadata.json"
+        },
+        "reloaded.sharedlib.hooks": {
+          "Config": {
+            "UserName": "Sewer56",
+            "RepositoryName": "Reloaded.SharedLib.Hooks.ReloadedII",
+            "UseReleaseTag": true,
+            "AssetFileName": "reloaded.sharedlib.hooks.zip"
+          },
+          "ReleaseMetadataName": "Sewer56.Update.ReleaseMetadata.json"
+        }
+      }
+    }
+  },
   "IsUniversalMod": false,
   "ModDependencies": [
+    "MVGL.FileLoader.Reloaded",
     "Reloaded.Memory.SigScan.ReloadedII",
-    "reloaded.sharedlib.hooks",
-    "MVGL.FileLoader.Reloaded"
+    "reloaded.sharedlib.hooks"
   ],
   "OptionalDependencies": [],
   "SupportedAppId": [
