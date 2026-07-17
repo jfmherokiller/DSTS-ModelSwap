@@ -1,0 +1,10 @@
+bin/
+obj/
+*.user
+dist/
+dump/
+nlst_all/
+__pycache__/
+*.pyc
+.vs/
+*.suo
