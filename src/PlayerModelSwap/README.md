@@ -58,7 +58,8 @@ strong hint, not a guarantee.)
   reading the *loaded model* every frame, so with a Digimon model the `Q Analyze` prompt never appears
   and the key does nothing. **Workaround:** set **Player Digimon** to `None`, then cross a loading zone
   (or open/close the Digivice) so your human model reloads — Analyze returns. Switch back afterward.
-  This is confirmed via live debugging, not a mod bug; see [`docs/ANALYZE-GATE.md`](../../docs/ANALYZE-GATE.md)
+  This is confirmed via live debugging, not a mod bug; see
+  [`docs/ANALYZE-GATE.md`](https://github.com/jfmherokiller/DSTS-ModelSwap/blob/master/docs/ANALYZE-GATE.md)
   for the full reverse-engineering write-up and why a code-only fix is a separate project.
 - Changing the enum names (tier prefixes) resets a previously-saved dropdown selection to `None` once;
   just re-pick your Digimon.
