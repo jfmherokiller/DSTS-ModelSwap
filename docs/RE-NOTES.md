@@ -158,6 +158,13 @@ mvgl-loader/app_0/data/player_model.mbe/player_change_model.ap.csv    # APPEND n
 
 **`require` injection trick:** `require("modname")` makes the game request `patch\lua\modname.lua`, which the FileLoader serves from the mod — that's how CustomStarters runs its generated `custom_starters.lua`. Our mod uses `pcall(require, "player_model_swap")` in a decompiled `field_map_change.lua`, then calls `ApplyPlayerModelSwap()` (in `player_model_swap.lua`) on map trigger/arrival. `pcall` + `if ApplyPlayerModelSwap then` guards ensure a missing/broken script never breaks map transitions.
 
+## Open follow-ups
+- **Analyze-disabled-while-Digimon** — the field `Q Analyze` action is gated on the loaded model, which
+  the game recomputes every frame (no cached flag). Investigated in depth via live IDA debugging but not
+  yet fixed. Full diagnosis, key addresses, the differential method, and a concrete fix plan are in
+  [`ANALYZE-GATE.md`](ANALYZE-GATE.md).
+- **Animation retargeting** for non-humanoid rigs lives in the separate `AnimationFixes` repo.
+
 ## Conventions
 
 - Target app id everywhere is lowercase `digimon story time stranger.exe`.

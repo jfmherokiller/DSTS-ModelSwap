@@ -54,7 +54,11 @@ strong hint, not a guarantee.)
   head-tracking and facial expressions** need exact-name bones no Digimon has → those specific
   animations T-pose or stay neutral for everyone (the associated crash is guarded).
 - **Non-humanoid (F_) Digimon** T-pose broadly — expected, since they lack the humanoid skeleton.
-- **Analyze (`Q`) is unavailable while a Digimon** — the game gates it on the loaded model, so the
-  prompt does not appear. Set **Player Digimon** to `None` to analyze, then switch back.
+- **Analyze (`Q`) is unavailable while a Digimon.** The game decides whether to offer Analyze by
+  reading the *loaded model* every frame, so with a Digimon model the `Q Analyze` prompt never appears
+  and the key does nothing. **Workaround:** set **Player Digimon** to `None`, then cross a loading zone
+  (or open/close the Digivice) so your human model reloads — Analyze returns. Switch back afterward.
+  This is confirmed via live debugging, not a mod bug; see [`docs/ANALYZE-GATE.md`](../../docs/ANALYZE-GATE.md)
+  for the full reverse-engineering write-up and why a code-only fix is a separate project.
 - Changing the enum names (tier prefixes) resets a previously-saved dropdown selection to `None` once;
   just re-pick your Digimon.

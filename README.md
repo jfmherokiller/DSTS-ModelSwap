@@ -68,6 +68,15 @@ dropdown entry is graded from the game's skeleton data (`data/PLAYER_ANIM_COMPAT
 
 The remaining animation retargeting work lives in a separate follow-up repo (`AnimationFixes`).
 
+## Known limitations & open follow-ups
+- **Cutscene / look-at / facial** animations T-pose on Digimon rigs (missing exact-name bones); the
+  associated crash is guarded. Body animation retargets by bone role for humanoid (A/B) tiers.
+- **Analyze (`Q`) is unavailable while a Digimon** — the game recomputes analyze availability from the
+  loaded model every frame, so a code-only fix means patching that gate, not flipping a flag. This was
+  narrowed down with live debugging but not yet solved; full diagnosis and a concrete follow-up plan are
+  in [`docs/ANALYZE-GATE.md`](docs/ANALYZE-GATE.md). Workaround: set **Player Digimon** to `None` and
+  reload (cross a zone / Digivice cycle) to analyze as human.
+
 ## Credits & legal
 - **RyoTune** — DSTS.ModLoader, MVGL.FileLoader, MVLibraryNET, RemixToolkit.
 - **unluac** (SourceForge) — Lua 5.2 decompilation used during RE.
