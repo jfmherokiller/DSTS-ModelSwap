@@ -31,6 +31,28 @@ public class Mod : ModBase
     [Function(CallingConventions.Microsoft)]
     public delegate nint BlendFn(nint a1, nint a2);
 
+    // --- Temporary-Human hotkey plumbing ---------------------------------------------------------
+    // GetFieldSystem (0x14099F990): returns the CGameData singleton (creates it if null at runtime).
+    private const string GetFieldSystemSig =
+        "48 83 EC 28 48 8B 05 ?? ?? ?? ?? 48 85 C0 0F 85 ?? ?? ?? ?? B9 C0 00 00 00";
+    // sub_1409769F0: "ensure field manager + refresh" — the exact ensure+refresh the Digivice-close
+    // path uses (-> the model rebuild sub_140C42690). Called with *(CGameData+128) = the manager slot.
+    private const string RefreshTriggerSig =
+        "40 53 48 83 EC 20 48 8B D9 48 8B 01 48 85 C0 75 ?? B9 B8 CA 02 00 E8 ?? ?? ?? ?? 48 89 44 24 ?? 48 85 C0 74 ?? 48 8B C8 E8 ?? ?? ?? ?? 90 48 89 03 48 85 C0";
+    // sub_1401E50C0: field state update, runs per-frame during field play. We hook it only to get a
+    // game-thread "tick": after the original runs, if a refresh is queued we fire it (a valid point,
+    // it's where the game itself triggers refreshes -> no re-entrancy).
+    private const string FieldUpdateSig =
+        "F3 0F 11 4C 24 ?? 53 57 41 56 48 83 EC 40";
+    private const int OffFieldManagerSlot = 128; // *(CGameData + 128) = arg for the refresh trigger
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] // x64: single ABI, attribute ignored
+    private delegate nint GetFieldSystemFn();
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate nint RefreshTriggerFn(nint managerSlot);
+    [Function(CallingConventions.Microsoft)]
+    public delegate nint FieldUpdateFn(nint a1, float a2);
+
     private readonly IModLoader _modLoader = null!;
     private readonly IReloadedHooks? _hooks;
     private readonly ILogger _logger = null!;
@@ -39,7 +61,15 @@ public class Mod : ModBase
     private Config _config = null!;
     private IHook<ResolveModelRefFn>? _hook;
     private IHook<BlendFn>? _blendHook;
+    private IHook<FieldUpdateFn>? _fieldUpdateHook;
     private volatile int _targetKey; // player_change_model key (90000 + digimon id), or 0 = none
+
+    // Temporary-Human hotkey state.
+    private GetFieldSystemFn? _getFieldSystem;
+    private RefreshTriggerFn? _refreshTrigger;
+    private volatile bool _suppressHuman;  // true = swap suppressed this session (render the human model)
+    private volatile bool _pendingRefresh; // set on toggle; consumed on the game thread by the field hook
+    private Thread? _pollThread;
 
     public Mod(ModContext context)
     {
@@ -83,6 +113,36 @@ public class Mod : ModBase
             _blendHook = _hooks!.CreateHook<BlendFn>(LookAtBlendHook, addr).Activate();
             _logger.WriteLine($"[{_modConfig.ModId}] Hooked look-at blend null-guard @ 0x{addr:X}");
         });
+
+        // --- Temporary-Human hotkey: resolve the refresh trigger + hook the per-frame field update. ---
+        scanner.AddMainModuleScan(GetFieldSystemSig, result =>
+        {
+            if (!result.Found) { _logger.WriteLine($"[{_modConfig.ModId}] GetFieldSystem sig not found; instant hotkey refresh disabled."); return; }
+            var addr = (nint)((long)Process.GetCurrentProcess().MainModule!.BaseAddress + result.Offset);
+            _getFieldSystem = Marshal.GetDelegateForFunctionPointer<GetFieldSystemFn>(addr);
+            _logger.WriteLine($"[{_modConfig.ModId}] Resolved GetFieldSystem @ 0x{addr:X}");
+        });
+
+        scanner.AddMainModuleScan(RefreshTriggerSig, result =>
+        {
+            if (!result.Found) { _logger.WriteLine($"[{_modConfig.ModId}] refresh-trigger sig not found; instant hotkey refresh disabled."); return; }
+            var addr = (nint)((long)Process.GetCurrentProcess().MainModule!.BaseAddress + result.Offset);
+            _refreshTrigger = Marshal.GetDelegateForFunctionPointer<RefreshTriggerFn>(addr);
+            _logger.WriteLine($"[{_modConfig.ModId}] Resolved model refresh trigger @ 0x{addr:X}");
+        });
+
+        scanner.AddMainModuleScan(FieldUpdateSig, result =>
+        {
+            if (!result.Found) { _logger.WriteLine($"[{_modConfig.ModId}] field-update sig not found; instant hotkey refresh disabled."); return; }
+            var addr = (long)Process.GetCurrentProcess().MainModule!.BaseAddress + result.Offset;
+            // Assign before Activate: this hook fires per-frame immediately, so the field must be set
+            // before the handler (which calls OriginalFunction) can run.
+            _fieldUpdateHook = _hooks!.CreateHook<FieldUpdateFn>(FieldUpdateHook, addr);
+            _fieldUpdateHook.Activate();
+            _logger.WriteLine($"[{_modConfig.ModId}] Hooked field update (hotkey tick) @ 0x{addr:X}");
+        });
+
+        StartHotkeyPoll();
     }
 
     // Null-guard for the cutscene look-at/aim blend. Original null-derefs when the Digimon rig lacks
@@ -127,6 +187,68 @@ public class Mod : ModBase
         }
         return _blendHook!.OriginalFunction(a1, a2);
     }
+
+    // --- Temporary-Human hotkey -----------------------------------------------------------------
+    // Per-frame field update hook. We only use it as a game-thread tick: run the game's update, then
+    // if a toggle queued a refresh, fire the game's own model refresh so the (now un/re-suppressed)
+    // model reloads in place. Doing it AFTER the original returns keeps us out of the refresh call
+    // tree the update itself uses, so there is no re-entrancy.
+    private nint FieldUpdateHook(nint a1, float a2)
+    {
+        var ret = _fieldUpdateHook!.OriginalFunction(a1, a2);
+        if (_pendingRefresh)
+        {
+            _pendingRefresh = false;
+            TriggerModelRefresh();
+        }
+        return ret;
+    }
+
+    private unsafe void TriggerModelRefresh()
+    {
+        var getFs = _getFieldSystem;
+        var refresh = _refreshTrigger;
+        if (getFs == null || refresh == null) return; // sigs not resolved -> reverts on next natural refresh
+        try
+        {
+            nint fs = getFs();
+            if (fs == 0 || IsBadReadPtr(fs + OffFieldManagerSlot, 8)) return;
+            nint slot = *(nint*)(fs + OffFieldManagerSlot);
+            if (slot == 0) return;
+            refresh(slot);
+        }
+        catch { /* never take down the game thread over a refresh */ }
+    }
+
+    private void StartHotkeyPoll()
+    {
+        _pollThread = new Thread(HotkeyPollLoop) { IsBackground = true, Name = "PMS-hotkey" };
+        _pollThread.Start();
+    }
+
+    // Background poll: on each fresh press of the configured key (only while a Digimon is selected),
+    // flip the suppress flag and queue a game-thread refresh. Setting flags is all this thread does;
+    // the actual game call happens on the field-update hook's thread.
+    private void HotkeyPollLoop()
+    {
+        bool prevDown = false;
+        while (true) // background thread; ends with the process (mod is CanUnload=false)
+        {
+            int vk = (int)_config.TemporaryHumanKey;
+            bool down = vk != 0 && (GetAsyncKeyState(vk) & 0x8000) != 0;
+            if (down && !prevDown && _targetKey != 0)
+            {
+                _suppressHuman = !_suppressHuman;
+                _pendingRefresh = true;
+                _logger.WriteLine($"[{_modConfig.ModId}] temporary-human toggled -> {(_suppressHuman ? "HUMAN" : "Digimon")}");
+            }
+            prevDown = down;
+            Thread.Sleep(25);
+        }
+    }
+
+    [DllImport("user32.dll")]
+    private static extern short GetAsyncKeyState(int vKey);
 
     [DllImport("kernel32.dll", CharSet = CharSet.Ansi)]
     private static extern void OutputDebugStringA(string msg);
@@ -203,7 +325,7 @@ public class Mod : ModBase
         //     (flag == 1) are left untouched to avoid the crash. Transiently set the change-model
         //     so BOTH the output string and the ref come from player_change_model[key] consistently,
         //     then restore (nothing persists -> save-safe).
-        if (key != 0 && self != 0 && origFlag == 0)
+        if (key != 0 && !_suppressHuman && self != 0 && origFlag == 0)
         {
             *(int*)(s + OffChangeId) = key;
             *(s + OffChangedFlag) = 1;
@@ -228,6 +350,7 @@ public class Mod : ModBase
     {
         var id = (int)_config.PlayerDigimon;
         _targetKey = id != 0 ? 90000 + id : 0;
+        _suppressHuman = false; // a config change gives a clean state: render exactly what's selected
         _logged.Clear();
     }
 

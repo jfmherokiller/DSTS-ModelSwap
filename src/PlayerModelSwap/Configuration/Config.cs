@@ -15,6 +15,23 @@ public class Config : Configurable<Config>
     [DefaultValue(PlayerDigimon.None)]
     [JsonConverter(typeof(TolerantPlayerDigimonConverter))]
     public PlayerDigimon PlayerDigimon { get; set; } = PlayerDigimon.None;
+
+    [DisplayName("Temporary-Human Hotkey")]
+    [Description("While a Digimon is selected, tap this key to briefly revert to the human model in place, " +
+                "then tap again to return to the Digimon. Use it for field actions the game locks to the " +
+                "human form (e.g. Q Analyze): tap -> human -> analyze -> tap -> Digimon.\n" +
+                "'None' disables the hotkey. The swap stays save-safe either way.")]
+    [DefaultValue(ToggleHotkey.None)]
+    public ToggleHotkey TemporaryHumanKey { get; set; } = ToggleHotkey.None;
+}
+
+/// <summary>Optional hotkey to temporarily revert to the human model. Values are Win32 virtual-key codes.</summary>
+public enum ToggleHotkey
+{
+    None = 0,
+    F1 = 0x70, F2 = 0x71, F3 = 0x72, F4 = 0x73,
+    F5 = 0x74, F6 = 0x75, F7 = 0x76, F8 = 0x77,
+    F9 = 0x78, F10 = 0x79, F11 = 0x7A, F12 = 0x7B,
 }
 
 /// <summary>

@@ -23,12 +23,19 @@ A second hook null-guards a cutscene look-at/aim blend (`sub_140222560`) that wo
 when a Digimon rig lacks the player's `head` aim bone. A vectored-exception crash logger prints any
 access-violation address (as `game+0xOFFSET`) via `OutputDebugString` for diagnosis.
 
-Files: `Digimon.g.cs` (generated enum + id→code map), `Mod.cs` (hooks), `Config.cs` (dropdown).
+**Temporary-Human Hotkey:** a background thread watches the configured key. On each press it flips a
+"suppress swap" flag (so `ResolveModelRef` returns the human model) and, on the game thread via a
+per-frame field-update hook, calls the game's own field-model refresh (`sub_1409769F0`) so the model
+reloads in place. Press again to restore the Digimon. Still save-safe — nothing persists.
+
+Files: `Digimon.g.cs` (generated enum + id→code map), `Mod.cs` (hooks), `Config.cs` (dropdown + hotkey).
 
 ## Usage
 1. Enable in Reloaded II → **Configure Mod** → set **Player Digimon** → apply.
 2. Launch / load. The model refreshes on map load, so cross a loading zone if already in-game.
-3. Change or set to **None** at any time — no save cleanup ever needed.
+3. (Optional) Set **Temporary-Human Hotkey** to a key. In the field, tap it to revert to the human model
+   in place — for `Q Analyze` and other human-only actions — and tap again to return to your Digimon.
+4. Change or set to **None** at any time — no save cleanup ever needed.
 
 ## Compatibility tiers (dropdown prefix)
 Player animations are authored for a **humanoid skeleton**. A Digimon animates well only if its
@@ -54,12 +61,9 @@ strong hint, not a guarantee.)
   head-tracking and facial expressions** need exact-name bones no Digimon has → those specific
   animations T-pose or stay neutral for everyone (the associated crash is guarded).
 - **Non-humanoid (F_) Digimon** T-pose broadly — expected, since they lack the humanoid skeleton.
-- **Analyze (`Q`) is unavailable while a Digimon.** The game decides whether to offer Analyze by
-  reading the *loaded model* every frame, so with a Digimon model the `Q Analyze` prompt never appears
-  and the key does nothing. **Workaround:** set **Player Digimon** to `None`, then cross a loading zone
-  (or open/close the Digivice) so your human model reloads — Analyze returns. Switch back afterward.
-  This is confirmed via live debugging, not a mod bug; see
-  [`docs/ANALYZE-GATE.md`](https://github.com/jfmherokiller/DSTS-ModelSwap/blob/master/docs/ANALYZE-GATE.md)
-  for the full reverse-engineering write-up and why a code-only fix is a separate project.
+- **Analyze (`Q`) and a few other actions are locked to the human form.** The game reads the *loaded
+  model* to decide their availability, so they don't appear while a Digimon is rendered. Use the
+  **Temporary-Human Hotkey** (below) to briefly revert. Background:
+  [`docs/ANALYZE-GATE.md`](https://github.com/jfmherokiller/DSTS-ModelSwap/blob/master/docs/ANALYZE-GATE.md).
 - Changing the enum names (tier prefixes) resets a previously-saved dropdown selection to `None` once;
   just re-pick your Digimon.
