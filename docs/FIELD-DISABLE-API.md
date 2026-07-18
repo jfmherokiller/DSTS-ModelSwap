@@ -64,15 +64,14 @@ Notes:
 
 ## Auxiliary prohibits (separate mechanism, not the disable-block)
 
-These do **not** touch the flag block; they set state on the field-player-prep object and the save system.
-Listed for completeness; both `Ride` variants share the impl body region around `0x140A6F9C0` and differ
-by argument, and the `Save` prohibits live around `0x140BF7C30`.
+These do **not** touch the flag block. Both pairs use a **shared dispatcher parameterized by a Lua
+upvalue**, so the four Lua names resolve to two dispatchers plus their per-action callbacks/setters (all
+named in the IDB):
 
-| Lua binding | Impl (approx) | Effect |
+| Lua binding(s) | Native (named) | Effect |
 |---|---|---|
-| `Field.SetProhibitAnywhereDigimonRide(bool)` | `~0x140A6F9C0` | sets an "anywhere digimon ride prohibited" flag on the field-player-prep object (via `sub_1401D6900`) |
-| `Field.SetProhibitDigimonRide(bool)` | `~0x140A6F9C0` | sets a "digimon ride prohibited" flag likewise |
-| `Common.ProhibitSave` / `CancelProhibitSave` | `~0x140BF7C30` | toggles the save-prohibited state in the save subsystem |
+| `Field.SetProhibitDigimonRide(bool)` **and** `Field.SetProhibitAnywhereDigimonRide(bool)` | `Lua_Field_SetProhibitDigimonRide` `0x140A6F9C0` (shared; the "anywhere" flag comes from the closure upvalue) → `FieldPlayerPrep_SetRideProhibit` `0x1401D6900` | sets the digimon-ride prohibit flags on the field-player-prep object |
+| `Common.ProhibitSave` / `Common.CancelProhibitSave` | `Lua_Common_ProhibitSave_dispatch` `0x140BF7C30` (shared; invokes the upvalue callback) → `Lua_Common_ProhibitSave_action` `0x140B97A60` / `Lua_Common_CancelProhibitSave_action` `0x140B962D0` → `FieldPlayer_SetSaveProhibited` `0x1409B0300` (arg 1 / 0) | toggles the "save prohibited" state on the FieldPlayerSystem |
 
 ## Relevance to the analyze-while-Digimon problem
 
