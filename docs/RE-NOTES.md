@@ -166,6 +166,9 @@ mvgl-loader/app_0/data/player_model.mbe/player_change_model.ap.csv    # APPEND n
   investigation, the disproven `sub_1409E7130` patch, and the shipped hotkey internals are in
   [`ANALYZE-GATE.md`](ANALYZE-GATE.md).
 - **Animation retargeting** for non-humanoid rigs lives in the separate `AnimationFixes` repo.
+- **Field disable/prohibit Lua API** (`Field.DisableMenu`/`DisableAnalyze`/… and the shared flag block at
+  `subsystem[419]+0x33F8`, bytes +730..+737) is fully mapped and named in the IDB — see
+  [`FIELD-DISABLE-API.md`](FIELD-DISABLE-API.md). It is *not* the analyze gate (block is null in normal play).
 
 ## Conventions
 
