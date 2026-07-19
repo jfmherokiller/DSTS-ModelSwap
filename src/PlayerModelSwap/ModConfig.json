@@ -2,7 +2,7 @@
   "ModId": "timestranger.noah.playermodelswap",
   "ModName": "Player Model Swap (Native)",
   "ModAuthor": "Noah Gooder",
-  "ModVersion": "1.2.0",
+  "ModVersion": "1.2.1",
   "ModDescription": "Swaps the field player character's model to any of 582 Digimon, chosen in the mod config. Models have a prefix denoting how well they will function with A being the best support.",
   "ModDll": "TimeStranger.PlayerModelSwap.dll",
   "ModIcon": "",

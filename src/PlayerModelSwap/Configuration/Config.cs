@@ -23,6 +23,14 @@ public class Config : Configurable<Config>
                 "'None' disables the hotkey. The swap stays save-safe either way.")]
     [DefaultValue(ToggleHotkey.None)]
     public ToggleHotkey TemporaryHumanKey { get; set; } = ToggleHotkey.None;
+
+    [DisplayName("Allow Digimon Ride")]
+    [Description("Let the player start a Digimon ride while rendered as a Digimon (instead of blocking it). " +
+                "The mount rig assumes a human player, so riding as some Digimon may misalign the mount or " +
+                "crash — if a ride crashes, turn this OFF to restore the crash guard. Human/None ride normally " +
+                "either way. Save-safe.")]
+    [DefaultValue(true)]
+    public bool AllowDigimonRide { get; set; } = true;
 }
 
 /// <summary>Optional hotkey to temporarily revert to the human model. Values are Win32 virtual-key codes.</summary>

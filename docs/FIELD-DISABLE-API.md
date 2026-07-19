@@ -81,3 +81,33 @@ ruled out at runtime. The actual baseline path is now pinned:
 consumes the active model's Analyze capability. Runtime byte index 3 maps to `player_change_model`
 column `Bool 8`; v1.2.0 enables that column in every generated row. See
 [`ANALYZE-GATE.md`](ANALYZE-GATE.md) for the complete trace.
+
+## `player_change_model` per-model capability array (field-action KeyHelp gates)
+
+When a change-model is active, the game builds a **12-byte capability array** from the row's `Bool 6..16`
+columns and caches it on the change-model param object at **`obj+0x1B0` (+432, bytes 0–7)** and
+**`obj+0x1B8` (+440, bytes 8–11)**. The array is a **contiguous copy** (single 16-byte `_OWORD` store),
+so **runtime byte index = column − 5** (anchored by the confirmed analyze mapping byte 3 ↔ `Bool 8`).
+Default (no change-model / `obj+448==0`) is all-`0x01` = every action allowed; each field-action gate
+reads its byte and hides its prompt when `0`.
+
+- **Builder (writer):** `sub_1401F71B0` — `*(_OWORD *)(param + 432) = <row caps>`.
+- **Copy-ctor:** `sub_1401F93D0` — clones `+432` between param objects.
+- **Getter:** `(**(off_141EDE9C0[328]) + 0x128)(...)` i.e. vtable `+296` on the change-model manager at
+  `off_141EDE9C0 + 2624`.
+
+Only **three** bytes are ever read across the whole KeyHelp registry (`0x141F8E380`, 12-byte entries):
+
+| Runtime byte | Column | Capability | Reader |
+|---|---|---|---|
+| 3 | **Bool 8** | field **Analyze** (`Q`) | `Field_CanShowAnalyzeKeyHelp` `0x1401FB090` |
+| 5 | **Bool 10** | interaction-target action | `sub_1401FB600` (via field-target update `sub_1401F0440`) |
+| 7 | **Bool 12** | **Digimon Ride** (mount prompt, layout id `100200`) | `sub_1401FADB0` — also iterates the ride-prohibit array (`off_141EDE9C0+3641`, stride 112); `sub_1401FB2E0` |
+
+**Mod enables `Bool 8` (analyze, v1.2.0) and `Bool 12` (ride, v1.2.1)** in every generated row. Setting
+`Bool 12` makes the mount KeyHelp prompt appear while transformed; the actual ride start is separately
+governed by the C# `AllowDigimonRide` hook + the ride-prohibit array.
+
+**Ladder climbing is NOT in this array** — no capability byte gates it. Ladder availability is controlled
+only by the script-driven disable-block flag `+735` (`DisableSystemLadder`, see table above), which is
+independent of the loaded model, so the swap never hides ladders and no CSV bool affects them.

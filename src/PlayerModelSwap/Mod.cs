@@ -47,8 +47,8 @@ public class Mod : ModBase
     private const int OffFieldManagerSlot = 128; // *(CGameData + 128) = arg for the refresh trigger
 
     // Digimon-ride start (sub_1401D5090; real impl behind Field.PlayerScriptDigimonRideStart and one
-    // other entry). Riding a digimon while the PLAYER is rendered as a digimon breaks the mount rig and
-    // crashes, so we block the ride start whenever the swap is showing a Digimon.
+    // other entry). Riding a digimon while the PLAYER is rendered as a digimon can break the mount rig; we
+    // hook this so the AllowDigimonRide config can optionally re-block it (default: allow).
     private const string RideStartSig =
         "48 89 5C 24 ?? 55 56 57 41 54 41 55 41 56 41 57 48 8D 6C 24 ?? 48 81 EC 10 01 00 00 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 45 ?? 4D 8B E1";
 
@@ -153,20 +153,22 @@ public class Mod : ModBase
 
         scanner.AddMainModuleScan(RideStartSig, result =>
         {
-            if (!result.Found) { _logger.WriteLine($"[{_modConfig.ModId}] ride-start sig not found; digimon-ride crash guard disabled."); return; }
+            if (!result.Found) { _logger.WriteLine($"[{_modConfig.ModId}] ride-start sig not found; digimon-ride crash guard unavailable."); return; }
             var addr = (long)Process.GetCurrentProcess().MainModule!.BaseAddress + result.Offset;
             _rideHook = _hooks!.CreateHook<RideStartFn>(RideStartHook, addr).Activate();
-            _logger.WriteLine($"[{_modConfig.ModId}] Hooked digimon-ride start (crash guard) @ 0x{addr:X}");
+            _logger.WriteLine($"[{_modConfig.ModId}] Hooked digimon-ride start (AllowDigimonRide={_config.AllowDigimonRide}) @ 0x{addr:X}");
         });
 
         StartHotkeyPoll();
     }
 
-    // Crash guard: block starting a digimon ride while the player is rendered as a Digimon (the mount rig
-    // assumes a human player and crashes otherwise). Human/None (incl. Temporary-Human) rides normally.
+    // Digimon ride while rendered as a Digimon. By default (AllowDigimonRide = true) the ride is allowed to
+    // start normally. The mount rig assumes a human player, so this can misalign the mount or crash for some
+    // Digimon; setting AllowDigimonRide = false restores the crash guard (blocks the ride start while
+    // swapped). Human/None (incl. Temporary-Human) always ride normally.
     private nint RideStartHook(nint a1, int a2, byte a3, nint a4)
     {
-        if (_targetKey != 0 && !_suppressHuman)
+        if (!_config.AllowDigimonRide && _targetKey != 0 && !_suppressHuman)
         {
             if (!_rideBlockLogged)
             {
@@ -323,6 +325,7 @@ public class Mod : ModBase
         var id = (int)_config.PlayerDigimon;
         _targetKey = id != 0 ? 90000 + id : 0;
         _suppressHuman = false; // a config change gives a clean state: render exactly what's selected
+        _rideBlockLogged = false; // let a re-block log again after a config change
     }
 
     public override void ConfigurationUpdated(Config configuration)

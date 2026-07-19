@@ -25,10 +25,19 @@ sets `+480`/`+477`, lets the original resolve both model name and resource from 
 then restores the fields. This keeps the swap save-safe and HUD-safe. MVGL.FileLoader appends one
 `player_change_model` row per Digimon.
 
-v1.2.0 also sets `Bool 8=true` in every generated row. Live tracing proved this is the field Analyze
-capability consumed by `Field_CanShowAnalyzeKeyHelp` (`0x1401FB090`), so `Q Analyze` now works directly
-while transformed. The Temporary-Human hotkey remains as an optional fallback. The ride-start hook stays
-active as a crash guard and blocks Digimon riding while the player is rendered as a Digimon.
+v1.2.0 sets `Bool 8=true` and v1.2.1 also sets `Bool 12=true` in every generated row. These are two
+columns of the `player_change_model` per-model **capability array** (12 bytes copied to the change-model
+param at `+432`/`+440`; runtime byte index = column − 5). `Bool 8` (byte 3) is the field **Analyze**
+capability (`Field_CanShowAnalyzeKeyHelp` `0x1401FB090`) — so `Q Analyze` works directly while
+transformed. `Bool 12` (byte 7) is the **Digimon Ride** capability (`sub_1401FADB0`, layout id `100200`)
+— so the mount KeyHelp prompt now appears while transformed. Only three bytes in the array are ever read
+(3 analyze, 5 interaction-target, 7 ride); **ladder is not in it** (script-only `+735`). Full map in
+[`FIELD-DISABLE-API.md`](FIELD-DISABLE-API.md). The Temporary-Human hotkey remains as an optional fallback.
+
+The ride-start hook (`sub_1401D5090`) stays active, but now defaults to *allowing* a Digimon ride while
+rendered as a Digimon; the `AllowDigimonRide` config toggle can switch it back to the crash-guard behavior
+(block the ride while swapped) for Digimon whose mount rig misaligns or crashes. So enabling a ride while
+transformed takes both pieces: `Bool 12` makes the prompt appear, and the hook lets the ride start.
 
 ## Historical Lua reconnaissance
 

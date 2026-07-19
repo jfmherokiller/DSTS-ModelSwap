@@ -10,9 +10,16 @@ SRC = r"E:\ReverseEngineProjects\TimeStranger\dump\digimon_status.digimon_status
 OUT = (r"E:\ReverseEngineProjects\TimeStranger\DSTS-PlayerModelSwap"
        r"\src\PlayerModelSwap\mvgl-loader\app_0\data\player_model.mbe\player_change_model.ap.csv")
 
-# Bool 8 is the field Analyze capability. Stock change-model rows leave it false,
-# which removes the Q Analyze KeyHelp entry whenever a change model is active.
-BOOLS = "false,false,true,true,false,false,false,false,false,true,false"
+# player_change_model per-model capability bools (columns Bool 6..16). The game copies these into a
+# 12-byte capability array (runtime byte index = column - 5) that gates field-action KeyHelp prompts.
+# Reverse-engineered readers (see docs/FIELD-DISABLE-API.md):
+#   Bool 8  (byte 3) = field Analyze   -> Field_CanShowAnalyzeKeyHelp (0x1401FB090)
+#   Bool 10 (byte 5) = interaction-target capability -> sub_1401FB600
+#   Bool 12 (byte 7) = Digimon Ride    -> sub_1401FADB0 (also checks the ride-prohibit array)
+# Stock change-model rows leave these false, which hides those prompts while a change model is active.
+# We enable Analyze (Bool 8) and Digimon Ride (Bool 12). Ladder is NOT gated here (script-only, +735).
+#           B6    B7    B8   B9   B10   B11   B12  B13   B14   B15  B16
+BOOLS = "false,false,true,true,false,false,true,false,false,true,false"
 HEADER = ("Int 1,String2 2,String2 3,Empty 4,Int 5,Bool 6,Bool 7,Bool 8,Bool 9,Bool 10,"
           "Bool 11,Bool 12,Bool 13,Bool 14,Bool 15,Bool 16,String2 17")
 
