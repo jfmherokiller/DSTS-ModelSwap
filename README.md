@@ -9,6 +9,8 @@ character's model** to any of 582 Digimon, chosen from an in-game config dropdow
 - **Crash-safe** — cutscene crashes from missing rig bones are guarded.
 - **Analyze-friendly** — an optional hotkey briefly reverts you to the human form so field actions the
   game locks to it (e.g. `Q Analyze`) work, then flips you back to the Digimon.
+- **Ride crash-guard** — starting a Digimon ride while *rendered* as a Digimon is blocked (it breaks the
+  mount rig and crashes); riding works normally as human / None / Temporary-Human.
 - **Code + data only** — no game model/asset files are replaced.
 - **Compatibility-tiered dropdown** — entries are prefixed `A_`…`F_` by how well each Digimon's
   skeleton fits the player's animations (see below).

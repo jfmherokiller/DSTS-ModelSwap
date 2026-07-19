@@ -46,12 +46,20 @@ public class Mod : ModBase
         "F3 0F 11 4C 24 ?? 53 57 41 56 48 83 EC 40";
     private const int OffFieldManagerSlot = 128; // *(CGameData + 128) = arg for the refresh trigger
 
+    // Digimon-ride start (sub_1401D5090; real impl behind Field.PlayerScriptDigimonRideStart and one
+    // other entry). Riding a digimon while the PLAYER is rendered as a digimon breaks the mount rig and
+    // crashes, so we block the ride start whenever the swap is showing a Digimon.
+    private const string RideStartSig =
+        "48 89 5C 24 ?? 55 56 57 41 54 41 55 41 56 41 57 48 8D 6C 24 ?? 48 81 EC 10 01 00 00 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 45 ?? 4D 8B E1";
+
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] // x64: single ABI, attribute ignored
     private delegate nint GetFieldSystemFn();
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate nint RefreshTriggerFn(nint managerSlot);
     [Function(CallingConventions.Microsoft)]
     public delegate nint FieldUpdateFn(nint a1, float a2);
+    [Function(CallingConventions.Microsoft)]
+    public delegate nint RideStartFn(nint a1, int a2, byte a3, nint a4);
 
     private readonly IModLoader _modLoader = null!;
     private readonly IReloadedHooks? _hooks;
@@ -62,6 +70,8 @@ public class Mod : ModBase
     private IHook<ResolveModelRefFn>? _hook;
     private IHook<BlendFn>? _blendHook;
     private IHook<FieldUpdateFn>? _fieldUpdateHook;
+    private IHook<RideStartFn>? _rideHook;
+    private bool _rideBlockLogged;
     private volatile int _targetKey; // player_change_model key (90000 + digimon id), or 0 = none
 
     // Temporary-Human hotkey state.
@@ -142,7 +152,31 @@ public class Mod : ModBase
             _logger.WriteLine($"[{_modConfig.ModId}] Hooked field update (hotkey tick) @ 0x{addr:X}");
         });
 
+        scanner.AddMainModuleScan(RideStartSig, result =>
+        {
+            if (!result.Found) { _logger.WriteLine($"[{_modConfig.ModId}] ride-start sig not found; digimon-ride crash guard disabled."); return; }
+            var addr = (long)Process.GetCurrentProcess().MainModule!.BaseAddress + result.Offset;
+            _rideHook = _hooks!.CreateHook<RideStartFn>(RideStartHook, addr).Activate();
+            _logger.WriteLine($"[{_modConfig.ModId}] Hooked digimon-ride start (crash guard) @ 0x{addr:X}");
+        });
+
         StartHotkeyPoll();
+    }
+
+    // Crash guard: block starting a digimon ride while the player is rendered as a Digimon (the mount rig
+    // assumes a human player and crashes otherwise). Human/None (incl. Temporary-Human) rides normally.
+    private nint RideStartHook(nint a1, int a2, byte a3, nint a4)
+    {
+        if (_targetKey != 0 && !_suppressHuman)
+        {
+            if (!_rideBlockLogged)
+            {
+                _rideBlockLogged = true;
+                _logger.WriteLine($"[{_modConfig.ModId}] blocked digimon ride while swapped (crash guard)");
+            }
+            return 0; // report "ride did not start"
+        }
+        return _rideHook!.OriginalFunction(a1, a2, a3, a4);
     }
 
     // Null-guard for the cutscene look-at/aim blend. Original null-derefs when the Digimon rig lacks
