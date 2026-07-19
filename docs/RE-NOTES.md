@@ -25,19 +25,22 @@ sets `+480`/`+477`, lets the original resolve both model name and resource from 
 then restores the fields. This keeps the swap save-safe and HUD-safe. MVGL.FileLoader appends one
 `player_change_model` row per Digimon.
 
-v1.2.0 sets `Bool 8`, v1.2.1 adds `Bool 12`, and v1.2.2 adds `Bool 10` in every generated row. These are
-columns of the `player_change_model` per-model **capability array** (12 bytes copied to the change-model
-param at `+432`/`+440`; runtime byte index = column − 5). Only three bytes are ever read:
-- `Bool 8` (byte 3) = field **Analyze** KeyHelp (`Field_CanShowAnalyzeKeyHelp` `0x1401FB090`) → `Q Analyze`
-  works while transformed.
-- `Bool 10` (byte 5) = **in-world interaction prompt** — ladders, examine points, pickups, talk points
-  (`Field_CanShowInteractPrompt` `0x1401FB600` → `Field_UpdateInteractTarget` `0x1401F0440`) → the floating
-  world button appears while transformed (this is why ladders previously required reverting to human).
-- `Bool 12` (byte 7) = **Digimon Ride** mount prompt (`Field_CanShowDigimonRideKeyHelp` `0x1401FADB0`).
+v1.2.0→v1.2.3 enable four columns of the `player_change_model` per-model **capability array** (12 bytes
+copied to the change-model param at `+432`/`+440`; runtime byte index = column − 5). A full sweep of the
+field-player module found **only four** columns with any consumer:
+- `Bool 8` (byte 3, v1.2.0) = field **Analyze** KeyHelp (`Field_CanShowAnalyzeKeyHelp` `0x1401FB090`).
+- `Bool 10` (byte 5, v1.2.2) = **in-world interaction** target type 12 (`Field_CanShowInteractPrompt`
+  `0x1401FB600` → `Field_UpdateInteractTarget` `0x1401F0440`).
+- `Bool 11` (byte 6, v1.2.3) = **in-world interaction** target type 10 (`Field_DispatchInteractAction`
+  `0x1401DFBD0` case 10).
+- `Bool 12` (byte 7, v1.2.1) = **Digimon Ride** mount prompt (`Field_CanShowDigimonRideKeyHelp`
+  `0x1401FADB0`).
 
-The disable-block `+735` (`DisableSystemLadder`) is a *separate* script-driven mechanism, not the model
-gate. Full map in [`FIELD-DISABLE-API.md`](FIELD-DISABLE-API.md). The Temporary-Human hotkey remains as an
-optional fallback.
+`Field_DispatchInteractAction` is a switch on the interaction-target type; most types aren't
+capability-gated, only types 12/10 are (Bool 10/11) — the in-world **ladder** prompt is one of those two,
+so both are enabled to cover it. `Bool 6/7/9/13/14/15/16` have no consumer (no effect). The disable-block
+`+735` (`DisableSystemLadder`) is a *separate* script-driven mechanism, not the model gate. Full map in
+[`FIELD-DISABLE-API.md`](FIELD-DISABLE-API.md). The Temporary-Human hotkey remains as an optional fallback.
 
 The ride-start hook (`sub_1401D5090`) stays active, but now defaults to *allowing* a Digimon ride while
 rendered as a Digimon; the `AllowDigimonRide` config toggle can switch it back to the crash-guard behavior

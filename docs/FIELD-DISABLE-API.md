@@ -96,21 +96,36 @@ reads its byte and hides its prompt when `0`.
 - **Getter:** `(**(off_141EDE9C0[328]) + 0x128)(...)` i.e. vtable `+296` on the change-model manager at
   `off_141EDE9C0 + 2624`.
 
-Only **three** bytes are ever read across the whole KeyHelp registry (`0x141F8E380`, 12-byte entries):
+### Full column ↔ byte map (all 11 bool columns)
 
-| Runtime byte | Column | Capability | Reader |
+The array's 12 bytes were swept across the entire field-player module (`0x1401B0000`–`0x140208000`) for
+readers. **Only four columns have any consumer**; the rest are copied but never read in this build.
+
+| Runtime byte | Column | Consumer | What it gates |
 |---|---|---|---|
-| 3 | **Bool 8** | field **Analyze** (`Q`) KeyHelp | `Field_CanShowAnalyzeKeyHelp` `0x1401FB090` |
-| 5 | **Bool 10** | **in-world interaction prompt** — ladders, examine points, pickups, talk points (the floating world button, *not* the KeyHelp bar) | `Field_CanShowInteractPrompt` `0x1401FB600` → `Field_UpdateInteractTarget` `0x1401F0440`, which stores the result at `FieldPlayerSystem+8896+451` |
-| 7 | **Bool 12** | **Digimon Ride** (mount prompt, layout id `100200`) | `Field_CanShowDigimonRideKeyHelp` `0x1401FADB0` — also iterates the ride-prohibit array (`off_141EDE9C0+3641`, stride 112); `sub_1401FB2E0` |
+| 0 | — (lead byte, no bool column) | — | not a capability |
+| 1 | Bool 6 | none found | no effect |
+| 2 | Bool 7 | none found | no effect |
+| **3** | **Bool 8** | `Field_CanShowAnalyzeKeyHelp` `0x1401FB090` | field **Analyze** (`Q`) KeyHelp |
+| 4 | Bool 9 | none found | no effect (set true by earlier rows; harmless) |
+| **5** | **Bool 10** | `Field_CanShowInteractPrompt` `0x1401FB600` (→ `Field_UpdateInteractTarget` `0x1401F0440`, stores at `FieldPlayerSystem+8896+451`); also `Field_DispatchInteractAction` `0x1401DFBD0` **case 12** | **in-world interaction** target **type 12** (the floating world button) |
+| **6** | **Bool 11** | `Field_DispatchInteractAction` `0x1401DFBD0` **case 10** (`BYTE6`) | **in-world interaction** target **type 10** |
+| **7** | **Bool 12** | `Field_CanShowDigimonRideKeyHelp` `0x1401FADB0` (+ `sub_1401FB2E0`); also iterates the ride-prohibit array (`off_141EDE9C0+3641`, stride 112) | **Digimon Ride** mount prompt (layout id `100200`) |
+| 8 | Bool 13 | none found | no effect |
+| 9 | Bool 14 | none found | no effect |
+| 10 | Bool 15 | none found | no effect (set true by earlier rows; harmless) |
+| 11 | Bool 16 | none found | no effect |
 
-**Mod enables `Bool 8` (analyze, v1.2.0), `Bool 12` (ride, v1.2.1), and `Bool 10` (interaction prompt,
-v1.2.2)** in every generated row. `Bool 12` makes the mount KeyHelp prompt appear while transformed (the
-actual ride start is separately governed by the C# `AllowDigimonRide` hook + the ride-prohibit array);
-`Bool 10` restores the in-world interaction/ladder prompt while transformed.
+**The mod enables the four consumed columns** in every generated row: `Bool 8` (analyze, v1.2.0),
+`Bool 12` (ride, v1.2.1), `Bool 10` (interaction type 12, v1.2.2), `Bool 11` (interaction type 10, v1.2.3).
 
-**Distinguish the two "ladder" mechanisms:** the *in-world interaction* prompt for a ladder is gated here by
-`Bool 10` (byte 5) — that is what made ladders require reverting to human. The disable-block flag `+735`
-(`DisableSystemLadder`, table above) is a *separate*, script-driven toggle that scripts use to suppress the
-ladder-climb system in specific scenes; it is independent of the loaded model and is not what the swap
-tripped.
+Notes:
+- **`Field_DispatchInteractAction` (`0x1401DFBD0`)** is a `switch` on the interaction-target *type*
+  (`*sub_1405BCC70(off_141EDE9C0+3992)`). Most types (1/2/4/7/8/9/11) are **not** capability-gated and work
+  regardless of model; only **type 12 (Bool 10)** and **type 10 (Bool 11)** consult the array. The
+  in-world **ladder** prompt is one of these two model-gated types — enabling both `Bool 10` and `Bool 11`
+  covers it either way (which is why the swap required reverting to human before v1.2.2/v1.2.3).
+- **Ride** takes two independent pieces: `Bool 12` makes the mount prompt appear; the ride *start* is
+  governed by the C# `AllowDigimonRide` hook + the ride-prohibit array.
+- **Distinguish from the disable-block:** the script-driven `DisableSystemLadder` flag `+735` (table above)
+  is a *separate* per-scene toggle, independent of the loaded model — not what the swap tripped.
