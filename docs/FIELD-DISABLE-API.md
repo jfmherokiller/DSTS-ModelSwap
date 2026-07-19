@@ -100,14 +100,17 @@ Only **three** bytes are ever read across the whole KeyHelp registry (`0x141F8E3
 
 | Runtime byte | Column | Capability | Reader |
 |---|---|---|---|
-| 3 | **Bool 8** | field **Analyze** (`Q`) | `Field_CanShowAnalyzeKeyHelp` `0x1401FB090` |
-| 5 | **Bool 10** | interaction-target action | `sub_1401FB600` (via field-target update `sub_1401F0440`) |
-| 7 | **Bool 12** | **Digimon Ride** (mount prompt, layout id `100200`) | `sub_1401FADB0` — also iterates the ride-prohibit array (`off_141EDE9C0+3641`, stride 112); `sub_1401FB2E0` |
+| 3 | **Bool 8** | field **Analyze** (`Q`) KeyHelp | `Field_CanShowAnalyzeKeyHelp` `0x1401FB090` |
+| 5 | **Bool 10** | **in-world interaction prompt** — ladders, examine points, pickups, talk points (the floating world button, *not* the KeyHelp bar) | `Field_CanShowInteractPrompt` `0x1401FB600` → `Field_UpdateInteractTarget` `0x1401F0440`, which stores the result at `FieldPlayerSystem+8896+451` |
+| 7 | **Bool 12** | **Digimon Ride** (mount prompt, layout id `100200`) | `Field_CanShowDigimonRideKeyHelp` `0x1401FADB0` — also iterates the ride-prohibit array (`off_141EDE9C0+3641`, stride 112); `sub_1401FB2E0` |
 
-**Mod enables `Bool 8` (analyze, v1.2.0) and `Bool 12` (ride, v1.2.1)** in every generated row. Setting
-`Bool 12` makes the mount KeyHelp prompt appear while transformed; the actual ride start is separately
-governed by the C# `AllowDigimonRide` hook + the ride-prohibit array.
+**Mod enables `Bool 8` (analyze, v1.2.0), `Bool 12` (ride, v1.2.1), and `Bool 10` (interaction prompt,
+v1.2.2)** in every generated row. `Bool 12` makes the mount KeyHelp prompt appear while transformed (the
+actual ride start is separately governed by the C# `AllowDigimonRide` hook + the ride-prohibit array);
+`Bool 10` restores the in-world interaction/ladder prompt while transformed.
 
-**Ladder climbing is NOT in this array** — no capability byte gates it. Ladder availability is controlled
-only by the script-driven disable-block flag `+735` (`DisableSystemLadder`, see table above), which is
-independent of the loaded model, so the swap never hides ladders and no CSV bool affects them.
+**Distinguish the two "ladder" mechanisms:** the *in-world interaction* prompt for a ladder is gated here by
+`Bool 10` (byte 5) — that is what made ladders require reverting to human. The disable-block flag `+735`
+(`DisableSystemLadder`, table above) is a *separate*, script-driven toggle that scripts use to suppress the
+ladder-climb system in specific scenes; it is independent of the loaded model and is not what the swap
+tripped.

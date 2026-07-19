@@ -7,8 +7,10 @@ character's model** to any of 582 Digimon, chosen from an in-game config dropdow
   enable, change, or remove the mod at any time without corrupting a save.
 - **HUD-safe** — the game still sees the normal player at rest, so gender/HUD logic works.
 - **Crash-safe** — cutscene crashes from missing rig bones are guarded.
-- **Analyze-friendly** — `Q Analyze` remains available directly in Digimon form; an optional
-  Temporary-Human hotkey remains as a fallback for other human-only interactions.
+- **Field actions work while transformed** — the game gates `Q Analyze`, the in-world interaction prompt
+  (ladders, examine points, pickups, talk points), and the Digimon-ride mount prompt on a per-model
+  capability flag that stock swaps leave off; the mod re-enables all three. An optional Temporary-Human
+  hotkey remains as a fallback for anything still locked to the human form.
 - **Digimon ride** — you can start a Digimon ride while *rendered* as a Digimon (on by default). The mount
   rig assumes a human player, so some Digimon may misalign or crash on mount; a **Allow Digimon Ride** config
   toggle re-enables the crash guard (blocks the ride while swapped) if you hit that. Human / None /
