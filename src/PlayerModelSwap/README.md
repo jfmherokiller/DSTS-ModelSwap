@@ -17,11 +17,11 @@ so the game fills **both** the model name string and the model ref consistently 
 - **HUD-safe** — at rest the game sees the normal player, so gender/HUD logic works.
 
 The `player_change_model` rows for all 582 Digimon (key = `90000 + id` → `chrNNN`) are shipped in
-`mvgl-loader/` and loaded by **MVGL.FileLoader.Reloaded** (a dependency).
+`mvgl-loader/` and loaded by **MVGL.FileLoader.Reloaded** (a dependency). These rows enable the table's
+field-Analyze capability (`Bool 8`), so `Q Analyze` remains available while the Digimon is rendered.
 
 A second hook null-guards a cutscene look-at/aim blend (`sub_140222560`) that would otherwise crash
-when a Digimon rig lacks the player's `head` aim bone. A vectored-exception crash logger prints any
-access-violation address (as `game+0xOFFSET`) via `OutputDebugString` for diagnosis.
+when a Digimon rig lacks the player's `head` aim bone.
 
 **Temporary-Human Hotkey:** a background thread watches the configured key. On each press it flips a
 "suppress swap" flag (so `ResolveModelRef` returns the human model) and, on the game thread via a
@@ -33,8 +33,8 @@ Files: `Digimon.g.cs` (generated enum + id→code map), `Mod.cs` (hooks), `Confi
 ## Usage
 1. Enable in Reloaded II → **Configure Mod** → set **Player Digimon** → apply.
 2. Launch / load. The model refreshes on map load, so cross a loading zone if already in-game.
-3. (Optional) Set **Temporary-Human Hotkey** to a key. In the field, tap it to revert to the human model
-   in place — for `Q Analyze` and other human-only actions — and tap again to return to your Digimon.
+3. (Optional) Set **Temporary-Human Hotkey** to a key. `Q Analyze` works directly in Digimon form; the
+   hotkey remains a fallback for other human-only interactions and troubleshooting.
 4. Change or set to **None** at any time — no save cleanup ever needed.
 
 ## Compatibility tiers (dropdown prefix)
@@ -61,9 +61,9 @@ strong hint, not a guarantee.)
   head-tracking and facial expressions** need exact-name bones no Digimon has → those specific
   animations T-pose or stay neutral for everyone (the associated crash is guarded).
 - **Non-humanoid (F_) Digimon** T-pose broadly — expected, since they lack the humanoid skeleton.
-- **Analyze (`Q`) and a few other actions are locked to the human form.** The game reads the *loaded
-  model* to decide their availability, so they don't appear while a Digimon is rendered. Use the
-  **Temporary-Human Hotkey** (below) to briefly revert. Background:
+- **Analyze (`Q`) is enabled in Digimon form by the generated `player_change_model` rows.** The optional
+  **Temporary-Human Hotkey** remains available if another interaction still requires the human form.
+  Reverse-engineering details:
   [`docs/ANALYZE-GATE.md`](https://github.com/jfmherokiller/DSTS-ModelSwap/blob/master/docs/ANALYZE-GATE.md).
 - Changing the enum names (tier prefixes) resets a previously-saved dropdown selection to `None` once;
   just re-pick your Digimon.

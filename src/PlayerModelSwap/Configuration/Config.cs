@@ -18,8 +18,8 @@ public class Config : Configurable<Config>
 
     [DisplayName("Temporary-Human Hotkey")]
     [Description("While a Digimon is selected, tap this key to briefly revert to the human model in place, " +
-                "then tap again to return to the Digimon. Use it for field actions the game locks to the " +
-                "human form (e.g. Q Analyze): tap -> human -> analyze -> tap -> Digimon.\n" +
+                "then tap again to return to the Digimon. Q Analyze is supported directly while transformed; " +
+                "this remains available as a fallback for other human-only interactions or troubleshooting.\n" +
                 "'None' disables the hotkey. The swap stays save-safe either way.")]
     [DefaultValue(ToggleHotkey.None)]
     public ToggleHotkey TemporaryHumanKey { get; set; } = ToggleHotkey.None;

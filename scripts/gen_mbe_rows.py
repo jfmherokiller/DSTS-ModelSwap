@@ -10,7 +10,9 @@ SRC = r"E:\ReverseEngineProjects\TimeStranger\dump\digimon_status.digimon_status
 OUT = (r"E:\ReverseEngineProjects\TimeStranger\DSTS-PlayerModelSwap"
        r"\src\PlayerModelSwap\mvgl-loader\app_0\data\player_model.mbe\player_change_model.ap.csv")
 
-BOOLS = "false,false,false,true,false,false,false,false,false,true,false"
+# Bool 8 is the field Analyze capability. Stock change-model rows leave it false,
+# which removes the Q Analyze KeyHelp entry whenever a change model is active.
+BOOLS = "false,false,true,true,false,false,false,false,false,true,false"
 HEADER = ("Int 1,String2 2,String2 3,Empty 4,Int 5,Bool 6,Bool 7,Bool 8,Bool 9,Bool 10,"
           "Bool 11,Bool 12,Bool 13,Bool 14,Bool 15,Bool 16,String2 17")
 

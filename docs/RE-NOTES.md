@@ -1,6 +1,7 @@
-# CLAUDE.md
+# Reverse-engineering notes
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file records the architecture and reverse-engineering results behind the shipped mod. Addresses are
+IDA static addresses at image base `0x140000000`.
 
 ## Project Goal
 
@@ -17,9 +18,23 @@ The exe is already loaded in IDA Pro and reachable through the **`ida-pro-mcp`**
 - Long full-binary sweeps (`survey_binary`) can time out; prefer targeted queries (`search_text`, `find_bytes`, `decompile`, `xrefs_to`, `list_funcs`).
 - When you locate a function to hook, record a **stable AOB signature** (see sigscan pattern below) rather than a raw address — addresses shift between game patches; signatures survive.
 
-## Chosen approach: pure-Lua player model swap (CONFIRMED FEASIBLE)
+## Current shipped architecture (v1.2.0)
 
-IDA reconnaissance confirmed the swap is doable **entirely in Lua** — no native hook, no asset replacement. Use this path.
+The shipped mod uses a native `Reloaded.Hooks` detour on `FieldPlayer_ResolveModelRef`. It transiently
+sets `+480`/`+477`, lets the original resolve both model name and resource from `player_change_model`,
+then restores the fields. This keeps the swap save-safe and HUD-safe. MVGL.FileLoader appends one
+`player_change_model` row per Digimon.
+
+v1.2.0 also sets `Bool 8=true` in every generated row. Live tracing proved this is the field Analyze
+capability consumed by `Field_CanShowAnalyzeKeyHelp` (`0x1401FB090`), so `Q Analyze` now works directly
+while transformed. The Temporary-Human hotkey remains as an optional fallback. The ride-start hook stays
+active as a crash guard and blocks Digimon riding while the player is rendered as a Digimon.
+
+## Historical Lua reconnaissance
+
+The game's Lua setter proved that the underlying change-model mechanism was viable, but leaving the
+native change-model flag set could persist unsafe state. The production mod therefore uses the transient
+resolver hook described above instead of the early Lua prototype.
 
 ### The mechanism (traced end-to-end)
 
@@ -45,7 +60,8 @@ The **only** writer of `+480`/`+477` is `FieldPlayer_SetChangeModelId(sys, id)` 
 
 The native writer of `+480`/`+477` (`0x1409AD4E0`, sets id+flag) is real; it's just bound to the Lua name **`PlayerModelChange`**, not `GetPlayerModelName`. ⚠️ `GetGender()` parses the model name suffix — swapping the model may make it return nil; watch for downstream gender-dependent breakage.
 
-Delivery = the CustomStarters idiom: ReMIX enum picks the Digimon → generated Lua global → a decompiled game script (`field_map_change.lua`) calls `Common.PlayerModelChange(<key>)`.
+Historical prototype delivery was the CustomStarters idiom: ReMIX enum → generated Lua global → a
+patched map script calling `Common.PlayerModelChange(<key>)`. This is not the shipped architecture.
 
 ### RESOLVED — the `player_change_model` id space (dumped from `app_0.dx11.mvgl`)
 
@@ -67,11 +83,12 @@ Int(key), String2(name),        String2(modelRef),   Int, ...bools..., String2(a
 | Patamon | 96 | `char_PATAMON` | `chr096` |
 | Gomamon | 343 | `char_GOMAMON` | `chr343` |
 
-So `Common.GetPlayerModelName(343)` does **not** work directly (343 isn't a `player_change_model` key). To swap to an arbitrary Digimon, **add one row** to `player_change_model` via MVGL.FileLoader's MBE-CSV merge (see below) mapping a chosen key → that Digimon's `char_<NAME>` / model ref, then call `Common.GetPlayerModelName(<thatKey>)`. Still 100% data + Lua, no native code. Example new row for Gomamon:
+`343` is not a `player_change_model` key. The shipped mod adds rows using key `90000 + Digimon id` and
+transiently resolves that key through the native resolver hook. Example generated row for Gomamon:
 ```
-50343, char_GOMAMON, chr343aa010101, , 1, false,false,false,true,false,false,false,false,false,true,false,
+90343,char_GOMAMON,chr343,,1,false,false,true,true,false,false,false,false,false,true,false,
 ```
-(Confirm the exact `union_model` variant key for `chr343` — union keys look like `chr183aa010101`; base+skeleton live in `data/union_model.mbe`.)
+Here `Bool 8=true` is the confirmed field Analyze capability.
 
 **Runtime caveat to test in-game (not a code blocker):** the player slot drives a humanoid agent skeleton (`char_MALE_AGENT` / `char_FEMALE_AGENT`); the stock change-models (Aegiomon forms) were authored for it. An arbitrary Digimon with a different skeleton may mis-animate. Verify per target Digimon.
 
@@ -84,9 +101,10 @@ dotnet MbeDumper.dll dump <mvgl> <fileSubstr> <outDir> # dump matching .mbe shee
 ```
 Base game data is `gamedata/app_0.dx11.mvgl` (+ `patch.dx11.mvgl`); `addcont_*` are DLC. Dumped CSVs live in `dump/`. Note MBE **sheet** names ≠ file names (e.g. both `player_avatar_model` and `player_change_model` are sheets in `player_model.mbe`).
 
-### Fallback (only if a runtime row-injection is ever needed)
+### Why the shipped mod still uses a native hook
 
-A native `Reloaded.Hooks` hook is **not** required for the swap itself. It would only matter if you needed to inject rows into `player_change_model` at runtime instead of via the MBE/CSV editor — which MVGL.FileLoader already handles without custom hooks.
+MVGL.FileLoader handles row injection, but the resolver hook is required for the shipped save-safe design:
+it applies the change-model state only during resolution and immediately restores the original fields.
 
 ### AOB signatures for the key functions (imagebase 0x140000000)
 
@@ -141,7 +159,8 @@ Generate new signatures for hook targets in the same format.
 
 ## Mod delivery conventions (verified from FileLoader source)
 
-Our mod: `C:\Reloaded-II\Mods\timestranger.noah.mods` (data/Lua only, `ModDll: ""`, depends on `DSTS.ModLoader`, `RemixToolkit.Reloaded`, `MVGL.FileLoader.Reloaded`).
+Installed mod: `C:\Reloaded-II\Mods\timestranger.noah.playermodelswap`. It contains the native mod DLL
+plus `mvgl-loader/`, and depends on MVGL.FileLoader, Reloaded SigScan, and Reloaded shared hooks.
 
 **MBE data edits (MVGL.FileLoader)** — probe folder is **`mvgl-loader/`** in the mod dir (`Mod.cs`: `AddProbingPath("mvgl-loader")`). Layout mirrors `<mvglName>/<pathInArchive>/<sheet>.csv`, where `mvglName` = archive name before the first dot (`app_0.dx11.mvgl` → `app_0`). So a `player_change_model` edit goes at:
 ```
@@ -156,15 +175,16 @@ mvgl-loader/app_0/data/player_model.mbe/player_change_model.ap.csv    # APPEND n
 
 ⚠️ **Stock game Lua is compiled Lua 5.2 bytecode** (`\x1bLuaR` = `\x1bLua`+ver `0x52`, standard 5.2 header); MbeDumper `extract` pulls raw bytecode. The game's `lua_load` compiles **plaintext source** too, so replacements can be source. To edit a stock script: extract the **patch-archive** copy, decompile with **unluac** (`tools/unluac.jar`, fetched from SourceForge; `java -jar unluac.jar <file> > out.lua`), edit, ship as source. Validate edits with `luaparser` (pip) before shipping — a syntax error breaks that script.
 
-**`require` injection trick:** `require("modname")` makes the game request `patch\lua\modname.lua`, which the FileLoader serves from the mod — that's how CustomStarters runs its generated `custom_starters.lua`. Our mod uses `pcall(require, "player_model_swap")` in a decompiled `field_map_change.lua`, then calls `ApplyPlayerModelSwap()` (in `player_model_swap.lua`) on map trigger/arrival. `pcall` + `if ApplyPlayerModelSwap then` guards ensure a missing/broken script never breaks map transitions.
+**`require` injection trick (historical prototype):** `require("modname")` makes the game request
+`patch\lua\modname.lua`, which FileLoader can serve from a probe path. The current mod does not patch
+game Lua; this note is retained for future script-based mods.
 
 ## Follow-ups
-- **Analyze-disabled-while-Digimon — worked around in v1.1.0.** The field `Q Analyze` (and a few other
-  actions) are gated natively on the loaded model; the exact gate was never pinned (Lua and data are not
-  levers either). Instead of patching it, v1.1.0 ships a **Temporary-Human hotkey** that briefly reverts to
-  the human model in place (via the game's own field refresh) so those actions work, then swaps back. Full
-  investigation, the disproven `sub_1409E7130` patch, and the shipped hotkey internals are in
-  [`ANALYZE-GATE.md`](ANALYZE-GATE.md).
+- **Analyze while transformed — resolved in v1.2.0.** The gate is
+  `Field_CanShowAnalyzeKeyHelp` (`0x1401FB090`), reached from `FieldKeyHelp_UpdateLayout`
+  (`0x1401EEE10`). It consumes byte index 3 of the active model capability block, which maps to
+  `player_change_model` column `Bool 8`. Generated rows now set it true; prompt visibility and action
+  dispatch were verified in game. Full trace: [`ANALYZE-GATE.md`](ANALYZE-GATE.md).
 - **Animation retargeting** for non-humanoid rigs lives in the separate `AnimationFixes` repo.
 - **Field disable/prohibit Lua API** (`Field.DisableMenu`/`DisableAnalyze`/… and the shared flag block at
   `subsystem[419]+0x33F8`, bytes +730..+737) is fully mapped and named in the IDB — see
@@ -173,5 +193,6 @@ mvgl-loader/app_0/data/player_model.mbe/player_change_model.ap.csv    # APPEND n
 ## Conventions
 
 - Target app id everywhere is lowercase `digimon story time stranger.exe`.
-- New mods depend on `DSTS.ModLoader` (file replacement) and/or `RemixToolkit.Reloaded` (config UI), which transitively pull in SigScan + sharedlib.hooks.
+- This mod depends on `MVGL.FileLoader.Reloaded`, `Reloaded.Memory.SigScan.ReloadedII`, and
+  `reloaded.sharedlib.hooks`.
 - Keep new mod source and generated assets under `E:\ReverseEngineProjects\TimeStranger`; deploy built mods into `C:\Reloaded-II\Mods\<ModId>\`.

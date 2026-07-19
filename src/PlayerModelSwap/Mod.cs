@@ -89,7 +89,6 @@ public class Mod : ModBase
         _modConfig = context.ModConfig;
         _config = context.Configuration;
         UpdateTarget();
-        InstallCrashLogger();
 
         var scannerController = _modLoader.GetController<IStartupScanner>();
         if (scannerController == null || !scannerController.TryGetTarget(out var scanner))
@@ -213,7 +212,6 @@ public class Mod : ModBase
                 if (!_blendGuardLogged)
                 {
                     _blendGuardLogged = true;
-                    OutputDebugStringA($"[{_modConfig.ModId}] blend null-guard TRIGGERED (skipped crash)\n");
                     _logger.WriteLine($"[{_modConfig.ModId}] blend null-guard TRIGGERED");
                 }
                 return a1;
@@ -284,53 +282,13 @@ public class Mod : ModBase
     [DllImport("user32.dll")]
     private static extern short GetAsyncKeyState(int vKey);
 
-    [DllImport("kernel32.dll", CharSet = CharSet.Ansi)]
-    private static extern void OutputDebugStringA(string msg);
-
-    [DllImport("kernel32.dll")]
-    private static extern nint AddVectoredExceptionHandler(uint first, VectoredHandler handler);
-    [DllImport("kernel32.dll", CharSet = CharSet.Ansi)]
-    private static extern nint GetModuleHandleA(string? name);
-
     [DllImport("kernel32.dll")]
     private static extern bool IsBadReadPtr(nint lp, nuint ucb);
 
-    private delegate int VectoredHandler(nint exceptionInfo);
-    private VectoredHandler? _veh; // keep alive against GC
-    private nint _gameBase;
-
-    // Logs the faulting address of access violations as "game+0xOFFSET" (IDA addr = 0x140000000 + off).
-    // Observe-only: returns EXCEPTION_CONTINUE_SEARCH so normal crash handling still runs.
-    private void InstallCrashLogger()
-    {
-        _gameBase = GetModuleHandleA(null);
-        _veh = Veh;
-        AddVectoredExceptionHandler(1, _veh);
-        OutputDebugStringA($"[{_modConfig.ModId}] crash logger installed; game base=0x{_gameBase:X}\n");
-    }
-
-    private unsafe int Veh(nint info)
-    {
-        // EXCEPTION_POINTERS: +0 = PEXCEPTION_RECORD
-        var rec = *(nint*)info;
-        uint code = *(uint*)rec;                 // EXCEPTION_RECORD.ExceptionCode
-        if (code == 0xC0000005u)                 // EXCEPTION_ACCESS_VIOLATION
-        {
-            var addr = *(nint*)(rec + 16);       // EXCEPTION_RECORD.ExceptionAddress
-            long off = (long)addr - (long)_gameBase;
-            OutputDebugStringA($"[{_modConfig.ModId}] ACCESS_VIOLATION at game+0x{off:X} (ida 0x{0x140000000L + off:X})\n");
-        }
-        return 0; // EXCEPTION_CONTINUE_SEARCH
-    }
-
-    private readonly HashSet<string> _logged = new();
-
-    // FieldPlayerSystem field offsets (from FieldPlayer_SetChangeModelId @ 0x1409AD4E0 and the
-    // avatar path in FieldPlayer_ResolveModelRef @ 0x1409ADEE0):
-    //   +464 (int)  = avatar model id (player_avatar_model key; costume/gender)
+    // FieldPlayerSystem field offsets (from FieldPlayer_SetChangeModelId @ 0x1409AD4E0 and
+    // FieldPlayer_ResolveModelRef @ 0x1409ADEE0):
     //   +480 (int)  = change-model id (player_change_model key)
     //   +477 (byte) = "model changed" flag
-    private const int OffAvatarId = 464;
     private const int OffChangeId = 480;
     private const int OffChangedFlag = 477;
 
@@ -341,18 +299,9 @@ public class Mod : ModBase
 
         byte origFlag = self != 0 ? *(s + OffChangedFlag) : (byte)0;
         int origId = self != 0 ? *(int*)(s + OffChangeId) : 0;
-        int avatarId = self != 0 ? *(int*)(s + OffAvatarId) : 0;
 
         // (1) Unforced resolve: see what the game wants for this call.
         _hook!.OriginalFunction(self, outStr, outRef, arg4);
-        var want = ReadStdString(outStr) ?? "";
-
-        if (_logged.Add(want))
-        {
-            var line = $"[{_modConfig.ModId}] resolve want=\"{want}\" flag={origFlag} id={origId} avatar={avatarId} arg4={arg4} ref={(outRef == 0 ? 0 : 1)}";
-            OutputDebugStringA(line + "\n");
-            _logger.WriteLine(line);
-        }
 
         // (2) Apply the swap only when the game is NOT already driving its own change-model
         //     (origFlag == 0 = normal field player). Cutscenes that set a specific player model
@@ -369,23 +318,11 @@ public class Mod : ModBase
         }
     }
 
-    private static unsafe string? ReadStdString(nint p)
-    {
-        if (p == 0) return null;
-        var b = (byte*)p;
-        ulong size = *(ulong*)(b + 16);
-        ulong cap = *(ulong*)(b + 24);
-        if (size > 0x1000) return null;
-        byte* data = cap > 15 ? (byte*)*(nint*)b : b;
-        return data == null ? null : Marshal.PtrToStringAnsi((nint)data, (int)size);
-    }
-
     private void UpdateTarget()
     {
         var id = (int)_config.PlayerDigimon;
         _targetKey = id != 0 ? 90000 + id : 0;
         _suppressHuman = false; // a config change gives a clean state: render exactly what's selected
-        _logged.Clear();
     }
 
     public override void ConfigurationUpdated(Config configuration)

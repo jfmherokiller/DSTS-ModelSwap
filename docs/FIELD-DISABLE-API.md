@@ -75,8 +75,9 @@ named in the IDB):
 
 ## Relevance to the analyze-while-Digimon problem
 
-The disable-block is **not** the gate: it's null in normal play, and even `+732`/`+734` were ruled out at
-runtime (block absent; forcing the states had no effect on the field prompt). The field `Q Analyze`
-availability is decided by a *different* native path keyed to the loaded model, which was never pinned —
-full story in [`ANALYZE-GATE.md`](ANALYZE-GATE.md). v1.1.0 works around it with the Temporary-Human hotkey.
-This file exists so a future session can rule the disable-API back in/out quickly instead of re-deriving it.
+The disable-block is **not** the baseline gate: it's null in normal play, and even `+732`/`+734` were
+ruled out at runtime. The actual baseline path is now pinned:
+`FieldKeyHelp_UpdateLayout` (`0x1401EEE10`) calls `Field_CanShowAnalyzeKeyHelp` (`0x1401FB090`), which
+consumes the active model's Analyze capability. Runtime byte index 3 maps to `player_change_model`
+column `Bool 8`; v1.2.0 enables that column in every generated row. See
+[`ANALYZE-GATE.md`](ANALYZE-GATE.md) for the complete trace.

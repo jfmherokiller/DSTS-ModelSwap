@@ -7,7 +7,8 @@ Regeneration/analysis helpers. Absolute Windows paths inside assume this repo li
 - **gen_cs2.py** — regenerate `src/PlayerModelSwap/Digimon.g.cs` (enum: Digimon id + compat-tier name
   prefix). Reads the digimon_status dump + `data/PLAYER_ANIM_COMPATIBILITY.csv`.
 - **gen_mbe_rows.py** — regenerate `src/PlayerModelSwap/mvgl-loader/.../player_change_model.ap.csv`
-  (one row per Digimon, key = 90000 + id → chrNNN).
+  (one row per Digimon, key = 90000 + id → chrNNN). The template sets `Bool 8=true`, the confirmed
+  field-Analyze capability, so `Q Analyze` remains available while transformed.
 - **compat.py** / **compat2.py** — skeleton compatibility analysis from extracted `.nlst` bone lists
   (`compat2.py` produces the humanoid-role ranking → `data/PLAYER_ANIM_COMPATIBILITY.csv`).
 

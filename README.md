@@ -7,8 +7,8 @@ character's model** to any of 582 Digimon, chosen from an in-game config dropdow
   enable, change, or remove the mod at any time without corrupting a save.
 - **HUD-safe** — the game still sees the normal player at rest, so gender/HUD logic works.
 - **Crash-safe** — cutscene crashes from missing rig bones are guarded.
-- **Analyze-friendly** — an optional hotkey briefly reverts you to the human form so field actions the
-  game locks to it (e.g. `Q Analyze`) work, then flips you back to the Digimon.
+- **Analyze-friendly** — `Q Analyze` remains available directly in Digimon form; an optional
+  Temporary-Human hotkey remains as a fallback for other human-only interactions.
 - **Ride crash-guard** — starting a Digimon ride while *rendered* as a Digimon is blocked (it breaks the
   mount rig and crashes); riding works normally as human / None / Temporary-Human.
 - **Code + data only** — no game model/asset files are replaced.
@@ -60,7 +60,8 @@ Hooks `FieldPlayer_ResolveModelRef`. Per resolve it transiently sets the game's 
 and ref consistently from the `player_change_model` MBE table, then restores the fields — so nothing
 persists to the save. The `player_change_model` rows for all Digimon ship in `mvgl-loader/` and are
 loaded by MVGL.FileLoader. A second hook null-guards a cutscene look-at blend that crashed on Digimon
-rigs. The Temporary-Human hotkey flips a "suppress swap" flag and calls the game's own field-model
+rigs. The generated rows enable `player_change_model`'s field-Analyze capability (`Bool 8`). The
+Temporary-Human hotkey flips a "suppress swap" flag and calls the game's own field-model
 refresh so the human model reloads in place (and back). Full details in [`docs/RE-NOTES.md`](docs/RE-NOTES.md).
 
 ## Compatibility tiers
@@ -76,11 +77,10 @@ The remaining animation retargeting work lives in a separate follow-up repo (`An
 ## Known limitations & open follow-ups
 - **Cutscene / look-at / facial** animations T-pose on Digimon rigs (missing exact-name bones); the
   associated crash is guarded. Body animation retargets by bone role for humanoid (A/B) tiers.
-- **Analyze (`Q`) and other actions the game locks to the human form** — the game recomputes their
-  availability from the loaded model, so there's no clean flag to flip while a Digimon is rendered.
-  Instead of patching that native gate (which proved elusive — see [`docs/ANALYZE-GATE.md`](docs/ANALYZE-GATE.md)),
-  the mod ships a **Temporary-Human hotkey**: set a key under **Configure Mod**, then tap it to revert to
-  the human model in place (analyze, etc.), and tap again to return to your Digimon.
+- **Analyze (`Q`) now works directly in Digimon form.** The field gate consumes `Bool 8` from the active
+  `player_change_model` row; v1.2.0 enables it for every generated row. The optional
+  **Temporary-Human hotkey** remains for other human-only interactions and troubleshooting. See
+  [`docs/ANALYZE-GATE.md`](docs/ANALYZE-GATE.md) for the confirmed trace.
 
 ## Credits & legal
 - **RyoTune** — DSTS.ModLoader, MVGL.FileLoader, MVLibraryNET, RemixToolkit.
